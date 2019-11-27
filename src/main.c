@@ -42,7 +42,7 @@ int main()
 {
     char *cfgfile = "cfg/saferauto.cfg";
     char *weightfile = "cfg/saferauto.weights";
-    char *input = DARKNET_PATH "/data/FullIJCNN2013/00006.ppm";
+    char *input = "data/examples/50.ppm";
     float thresh = 0.5;
     char *names[] = {"prohibitory", "danger", "mandatory", "stop", "yield"};
     int classes = (int) (sizeof(names) / sizeof(char *));
