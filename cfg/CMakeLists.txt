@@ -1,0 +1,2 @@
+file(COPY saferauto.cfg DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY saferauto.weights DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

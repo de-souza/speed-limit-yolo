@@ -6,4 +6,6 @@ project(speed-limit-yolo
     LANGUAGES C
 )
 
+add_subdirectory(cfg)
+add_subdirectory(data)
 add_subdirectory(src)

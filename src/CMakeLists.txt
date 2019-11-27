@@ -7,8 +7,12 @@ message(STATUS "Set this path with cmake -D DARKNET_PATH:PATH=/home/user/darknet
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE DARKNET_PATH="${DARKNET_PATH}")
 
-target_compile_features(${PROJECT_NAME} PRIVATE c_std_11)
-set_target_properties(${PROJECT_NAME} PROPERTIES C_EXTENSIONS OFF)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    C_STANDARD 11
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS OFF
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 find_library(DARKNET_LIBRARY darknet PATHS ${DARKNET_PATH})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${DARKNET_LIBRARY})
