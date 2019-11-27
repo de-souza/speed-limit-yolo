@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <darknet.h>
+#include <leptonica/allheaders.h>
 #include <tesseract/capi.h>
 
 void show_detections(image im, detection *dets, int num, float thresh, char **names, int classes)
@@ -8,7 +8,7 @@ void show_detections(image im, detection *dets, int num, float thresh, char **na
     image canvas = copy_image(im);
     draw_detections(canvas, dets, num, thresh, names, alphabet, classes);
     fflush(stdout);
-    show_image(canvas, "Detections", 0);
+    show_image(canvas, "Detections", 1000);
     free_image(canvas);
 }
 
@@ -29,11 +29,20 @@ image crop_from_detection(image im, detection det)
     return crop_image(im, dx, dy, w, h);
 }
 
+image large_crop_from_detection(image im, detection det)
+{
+    int dx = (int) ((det.bbox.x - (det.bbox.w/2)) * im.w) - 10;
+    int dy = (int) ((det.bbox.y - (det.bbox.h/2)) * im.h) - 10;
+    int w = (int) (det.bbox.w * im.w) + 20;
+    int h = (int) (det.bbox.h * im.h) + 20;
+    return crop_image(im, dx, dy, w, h);
+}
+
 int main()
 {
     char *cfgfile = "cfg/saferauto.cfg";
     char *weightfile = "cfg/saferauto.weights";
-    char *input = DARKNET_PATH "/data/FullIJCNN2013/00083.ppm";
+    char *input = DARKNET_PATH "/data/FullIJCNN2013/00006.ppm";
     float thresh = 0.5;
     char *names[] = {"prohibitory", "danger", "mandatory", "stop", "yield"};
     int classes = (int) (sizeof(names) / sizeof(char *));
@@ -48,9 +57,21 @@ int main()
     show_detections(im, dets, num, thresh, names, classes);
     detection best = best_detection(dets, num, thresh, 0);
     image cropped = crop_from_detection(im, best);
-    show_image(cropped, "Detection", 0);
+    save_image(cropped, "detection");
     free_detections(dets, num);
     free_image(im);
     free_image(sized);
     free_image(cropped);
+    TessBaseAPI *handle = TessBaseAPICreate();
+    PIX *img = pixRead("detection.jpg");
+    TessBaseAPIInit3(handle, NULL, "eng");
+    TessBaseAPISetVariable(handle, "tessedit_char_whitelist", "0123456789");
+    TessBaseAPISetImage2(handle, img);
+    TessBaseAPIRecognize(handle, NULL);
+    char *text = TessBaseAPIGetUTF8Text(handle);
+    puts(text);
+    TessDeleteText(text);
+    TessBaseAPIEnd(handle);
+    TessBaseAPIDelete(handle);
+    pixDestroy(&img);
 }
