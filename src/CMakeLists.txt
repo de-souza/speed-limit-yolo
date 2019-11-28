@@ -15,5 +15,6 @@ message(STATUS "Set this path with 'cmake -D DARKNET_PATH:PATH=/home/user/darkne
 
 find_library(DARKNET_LIBRARY NAMES libdarknet.a PATHS ${DARKNET_PATH})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${DARKNET_LIBRARY} opencv_highgui opencv_videoio pthread lept tesseract)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DARKNET_LIBRARY} ${DARKNET_LIBRARY} opencv_highgui opencv_videoio opencv_imgcodecs opencv_core stdc++ m pthread lept tesseract)
 target_include_directories(${PROJECT_NAME} PRIVATE ${DARKNET_PATH}/include)
+target_compile_options(${PROJECT_NAME} PRIVATE -O3)
