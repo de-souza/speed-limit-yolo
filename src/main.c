@@ -1,16 +1,16 @@
-#include <stdlib.h>
 #include <getopt.h>
+#include <stdlib.h>
 #include <darknet.h>
 #include <leptonica/allheaders.h>
 #include <tesseract/capi.h>
 
-_Noreturn void usage(const char *name)
+_Noreturn void usage(const char *executable)
 {
-    fprintf(stderr, "Usage: %s [-a] [-c] [-e enlarge_px] file\n", name);
+    fprintf(stderr, "Usage: %s [-a] [-c] [-e extend_px] file\n", executable);
     exit(1);
 }
 
-void show_detections(image im, detection *dets, int num, float thresh, char **names, int classes)
+void show_detections(const image im, detection *dets, const int num, const float thresh, char **names, const int classes)
 {
     image **alphabet = load_alphabet();
     image canvas = copy_image(im);
@@ -28,12 +28,12 @@ detection best_detection(detection *dets, int num, float thresh, size_t class)
     return dets[0];
 }
 
-image crop_from_detection(image im, detection det, int enlarge_px)
+image crop_from_detection(const image im, const detection det, const int extend_px)
 {
-    int dx = (int) ((det.bbox.x - (det.bbox.w/2)) * im.w) - enlarge_px;
-    int dy = (int) ((det.bbox.y - (det.bbox.h/2)) * im.h) - enlarge_px;
-    int w = (int) (det.bbox.w * im.w) + 2*enlarge_px;
-    int h = (int) (det.bbox.h * im.h) + 2*enlarge_px;
+    int dx = (int) ((det.bbox.x - (det.bbox.w/2)) * im.w) - extend_px;
+    int dy = (int) ((det.bbox.y - (det.bbox.h/2)) * im.h) - extend_px;
+    int w = (int) (det.bbox.w * im.w) + 2*extend_px;
+    int h = (int) (det.bbox.h * im.h) + 2*extend_px;
     return crop_image(im, dx, dy, w, h);
 }
 
@@ -51,23 +51,8 @@ int parse_number(const char *str)
     return num;
 }
 
-int main(int argc, char **argv)
+void yolo_detect(char* input, const int show_dets, const int show_crop, const int extend_px, const char *output)
 {
-
-    int detections = 0;
-    int crop = 0;
-    int enlarge_px = 0;
-    int opt;
-    while ((opt = getopt(argc, argv, "ace:")) != -1)
-        switch (opt) {
-        case 'a': detections = 1; break;
-        case 'c': crop = 1; break;
-        case 'e': enlarge_px = atoi(optarg); break;
-        case -1: puts("-1"); break;
-        default: usage(argv[0]);
-        }
-    if (!argv[optind])
-        usage(argv[0]);
     char *cfgfile = "cfg/saferauto.cfg";
     char *weightfile = "cfg/saferauto.weights";
     float thresh = 0.5;
@@ -75,25 +60,29 @@ int main(int argc, char **argv)
     int classes = (int) (sizeof(names) / sizeof(char *));
     network *net = load_network(cfgfile, weightfile, 0);
     set_batch_network(net, 1);
-    image im = load_image_color(argv[optind], 0, 0);
+    image im = load_image_color(input, 0, 0);
     image sized = resize_image(im, net->w, net->h);
     network_predict(net, sized.data);
     int num = 0;
     detection* dets = get_network_boxes(net, 1, 1, thresh, 0, NULL, 0, &num);
     do_nms_sort(dets, num, classes, thresh);
-    if (detections)
+    if (show_dets)
         show_detections(im, dets, num, thresh, names, classes);
     detection best = best_detection(dets, num, thresh, 0);
-    image cropped = crop_from_detection(im, best, enlarge_px);
-    if (crop)
-        show_image(cropped, "detection", 0);
-    save_image(cropped, "detection");
+    image cropped = crop_from_detection(im, best, extend_px);
+    if (show_crop)
+        show_image(cropped, output, 0);
+    save_image(cropped, output);
     free_detections(dets, num);
     free_image(im);
     free_image(sized);
     free_image(cropped);
+}
+
+void tesseract_ocr(const char *input)
+{
     TessBaseAPI *handle = TessBaseAPICreate();
-    PIX *img = pixRead("detection.jpg");
+    PIX *img = pixRead(input);
     TessBaseAPIInit3(handle, NULL, "eng");
     TessBaseAPISetVariable(handle, "tessedit_char_whitelist", "0123456789");
     TessBaseAPISetImage2(handle, img);
@@ -106,4 +95,25 @@ int main(int argc, char **argv)
     TessBaseAPIEnd(handle);
     TessBaseAPIDelete(handle);
     pixDestroy(&img);
+}
+
+int main(int argc, char **argv)
+{
+
+    int opt;
+    int show_dets = 0;
+    int show_crop = 0;
+    int extend_px = 0;
+    while ((opt = getopt(argc, argv, "cde:")) != -1)
+        switch (opt) {
+        case 'c': show_crop = 1; break;
+        case 'd': show_dets = 1; break;
+        case 'e': extend_px = atoi(optarg); break;
+        case -1: puts("-1"); break;
+        default: usage(argv[0]);
+        }
+    if (!argv[optind])
+        usage(argv[0]);
+    yolo_detect(argv[optind], show_dets, show_crop, extend_px, "prediction");
+    tesseract_ocr("prediction.jpg");
 }
