@@ -1,8 +1,6 @@
-#include "video.h"
-
-#include <darknet.h>
 #include <opencv2/highgui/highgui_c.h>
-#include <opencv2/videoio/videoio_c.h>
+
+#include "video.h"
 
 static char **demo_names;
 static image **demo_alphabet;
@@ -34,7 +32,7 @@ int size_network(network *net)
     return count;
 }
 
-image make_empty_image(int w, int h, int c)
+image my_make_empty_image(int w, int h, int c)
 {
     image out;
     out.data = 0;
@@ -58,7 +56,7 @@ void ipl_into_image(IplImage *src, image im)
                 im.data[k*w*h + i*w + j] = data[i*step + j*c + k]/(float) 255.;
 }
 
-image ipl_to_image(IplImage *src)
+image my_ipl_to_image(IplImage *src)
 {
     int h = src->height;
     int w = src->width;
@@ -68,12 +66,12 @@ image ipl_to_image(IplImage *src)
     return out;
 }
 
-image get_image_from_stream(CvCapture *cap)
+image my_get_image_from_stream(CvCapture *cap)
 {
     IplImage* src = cvQueryFrame(cap);
     if (!src)
-        return make_empty_image(0, 0, 0);
-    image im = ipl_to_image(src);
+        return my_make_empty_image(0, 0, 0);
+    image im = my_ipl_to_image(src);
     rgbgr_image(im);
     return im;
 }
@@ -92,7 +90,7 @@ static void set_pixel(image m, int x, int y, int c, float val)
     m.data[c*m.h*m.w + y*m.w + x] = val;
 }
 
-void embed_image(image source, image dest, int dx, int dy)
+void my_embed_image(image source, image dest, int dx, int dy)
 {
     int x,y,k;
     for(k = 0; k < source.c; ++k)
@@ -103,7 +101,7 @@ void embed_image(image source, image dest, int dx, int dy)
             }
 }
 
-void letterbox_image_into(image im, int w, int h, image boxed)
+void my_letterbox_image_into(image im, int w, int h, image boxed)
 {
     int new_w = im.w;
     int new_h = im.h;
@@ -115,23 +113,24 @@ void letterbox_image_into(image im, int w, int h, image boxed)
         new_w = (im.w * h)/im.h;
     }
     image resized = resize_image(im, new_w, new_h);
-    embed_image(resized, boxed, (w-new_w)/2, (h-new_h)/2);
+    my_embed_image(resized, boxed, (w-new_w)/2, (h-new_h)/2);
     free_image(resized);
 }
 
-void *fetch_in_thread()
+void *fetch_in_thread(void *ptr)
 {
+    (void) ptr;
     free_image(buff[buff_index]);
-    buff[buff_index] = get_image_from_stream(cap);
+    buff[buff_index] = my_get_image_from_stream(cap);
     if (buff[buff_index].data == 0) {
         demo_done = 1;
         return 0;
     }
-    letterbox_image_into(buff[buff_index], net->w, net->h, buff_letter[buff_index]);
+    my_letterbox_image_into(buff[buff_index], net->w, net->h, buff_letter[buff_index]);
     return 0;
 }
 
-void *display_in_thread()
+void *display_in_thread(void)
 {
     int c = show_image(buff[(buff_index+1) % 3], "Demo", 1);
     if (c != -1)
@@ -187,8 +186,9 @@ detection *avg_predictions(network *net, int *nboxes)
     return dets;
 }
 
-void *detect_in_thread()
+void *detect_in_thread(void *ptr)
 {
+    (void) ptr;
     int running = 1;
     float nms = (float) 0.4;
 
@@ -250,7 +250,7 @@ void detect_video(char *cfgfile, char *weightfile, const float thresh, const cha
     if (!cap)
         error("Couldn't connect to webcam.\n");
 
-    buff[0] = get_image_from_stream(cap);
+    buff[0] = my_get_image_from_stream(cap);
     buff[1] = copy_image(buff[0]);
     buff[2] = copy_image(buff[0]);
     buff_letter[0] = letterbox_image(buff[0], net->w, net->h);

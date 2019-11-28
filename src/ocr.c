@@ -1,8 +1,8 @@
-#include "ocr.h"
-
 #include <string.h>
 #include <leptonica/allheaders.h>
 #include <tesseract/capi.h>
+
+#include "ocr.h"
 
 int parse_number(const char *str)
 {

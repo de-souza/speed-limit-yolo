@@ -1,7 +1,5 @@
 #include "image.h"
 
-#include <darknet.h>
-
 void show_detections(const image im, detection *dets, const int num, const float thresh, char **names, const int classes)
 {
     image **alphabet = load_alphabet();
