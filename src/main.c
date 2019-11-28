@@ -4,12 +4,6 @@
 #include <leptonica/allheaders.h>
 #include <tesseract/capi.h>
 
-_Noreturn void usage(const char *executable)
-{
-    fprintf(stderr, "Usage: %s [-a] [-c] [-e extend_px] file\n", executable);
-    exit(1);
-}
-
 void show_detections(const image im, detection *dets, const int num, const float thresh, char **names, const int classes)
 {
     image **alphabet = load_alphabet();
@@ -51,7 +45,7 @@ int parse_number(const char *str)
     return num;
 }
 
-void yolo_detect(char* input, const int show_dets, const int show_crop, const int extend_px, const char *output)
+void yolo_image(char* input, const int show_dets, const int show_crop, const int extend_px, const char *output)
 {
     char *cfgfile = "cfg/saferauto.cfg";
     char *weightfile = "cfg/saferauto.weights";
@@ -79,7 +73,27 @@ void yolo_detect(char* input, const int show_dets, const int show_crop, const in
     free_image(cropped);
 }
 
-void tesseract_ocr(const char *input)
+void yolo_video(char* input)
+{
+    char *cfgfile = "cfg/saferauto.cfg";
+    char *weightfile = "cfg/saferauto.weights";
+    float thresh = 0.5;
+    char *names[] = {"prohibitory", "danger", "mandatory", "stop", "yield"};
+    int classes = (int) (sizeof(names) / sizeof(char *));
+    demo(cfgfile, weightfile, thresh, 0, input, names, classes, 0, NULL, 1, 0, 0, 0, 0, 0);
+}
+
+void yolo_webcam()
+{
+    char *cfgfile = "cfg/saferauto.cfg";
+    char *weightfile = "cfg/saferauto.weights";
+    float thresh = 0.5;
+    char *names[] = {"prohibitory", "danger", "mandatory", "stop", "yield"};
+    int classes = (int) (sizeof(names) / sizeof(char *));
+    demo(cfgfile, weightfile, thresh, 0, NULL, names, classes, 0, NULL, 1, 0, 0, 0, 0, 0);
+}
+
+int tesseract_ocr(const char *input, const int show_ocr)
 {
     TessBaseAPI *handle = TessBaseAPICreate();
     PIX *img = pixRead(input);
@@ -89,12 +103,14 @@ void tesseract_ocr(const char *input)
     TessBaseAPISetSourceResolution(handle, 70);
     TessBaseAPIRecognize(handle, NULL);
     char *text = TessBaseAPIGetUTF8Text(handle);
-    printf("OCR: %s\n", text);
-    printf("Result: %d\n", parse_number(text));
+    if (show_ocr)
+        printf("OCR: %s\n", text);
+    int result = parse_number(text);
     TessDeleteText(text);
     TessBaseAPIEnd(handle);
     TessBaseAPIDelete(handle);
     pixDestroy(&img);
+    return result;
 }
 
 int main(int argc, char **argv)
@@ -104,15 +120,26 @@ int main(int argc, char **argv)
     int show_dets = 0;
     int show_crop = 0;
     int extend_px = 0;
-    while ((opt = getopt(argc, argv, "cde:")) != -1)
+    int show_ocr = 0;
+    int video = 0;
+    while ((opt = getopt(argc, argv, "cde:ov")) != -1)
         switch (opt) {
         case 'c': show_crop = 1; break;
         case 'd': show_dets = 1; break;
         case 'e': extend_px = atoi(optarg); break;
-        default: usage(argv[0]);
+        case 'o': show_ocr = 1; break;
+        case 'v': video = 1; break;
+        default:
+            fprintf(stderr, "Usage: %s [-cdov] [-e extend_px] file\n", argv[0]);
+            exit(1);
         }
-    if (!argv[optind])
-        usage(argv[0]);
-    yolo_detect(argv[optind], show_dets, show_crop, extend_px, "prediction");
-    tesseract_ocr("prediction.jpg");
+    if (!argv[optind]) {
+        yolo_webcam();
+    } else if (video) {
+        yolo_video(argv[optind]);
+    } else {
+        yolo_image(argv[optind], show_dets, show_crop, extend_px, "pred");
+        int result = tesseract_ocr("pred.jpg", show_ocr);
+        printf("Result: %d\n", result);
+    }
 }
