@@ -109,7 +109,6 @@ int main(int argc, char **argv)
         case 'c': show_crop = 1; break;
         case 'd': show_dets = 1; break;
         case 'e': extend_px = atoi(optarg); break;
-        case -1: puts("-1"); break;
         default: usage(argv[0]);
         }
     if (!argv[optind])
