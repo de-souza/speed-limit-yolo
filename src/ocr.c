@@ -1,5 +1,6 @@
 #include "ocr.h"
 
+#include <string.h>
 #include <leptonica/allheaders.h>
 #include <tesseract/capi.h>
 
