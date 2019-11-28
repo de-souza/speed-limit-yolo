@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8..3.10.2)
+cmake_minimum_required(VERSION 3.8..3.16)
 
 project(speed-limit-yolo
     VERSION 0.1
