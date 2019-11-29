@@ -20,16 +20,29 @@ static float *avg;
 static int demo_done;
 static int demo_total;
 
-int size_network(network *net)
+static float get_pixel(image m, int x, int y, int c)
 {
-    int i;
-    int count = 0;
-    for (i = 0; i < net->n; ++i) {
-        layer l = net->layers[i];
-        if (l.type == YOLO || l.type == REGION || l.type == DETECTION)
-            count += l.outputs;
-    }
-    return count;
+    assert(x < m.w && y < m.h && c < m.c);
+    return m.data[c*m.h*m.w + y*m.w + x];
+}
+
+static void set_pixel(image m, int x, int y, int c, float val)
+{
+    if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c)
+        return;
+    assert(x < m.w && y < m.h && c < m.c);
+    m.data[c*m.h*m.w + y*m.w + x] = val;
+}
+
+void my_embed_image(image source, image dest, int dx, int dy)
+{
+    int x,y,k;
+    for(k = 0; k < source.c; ++k)
+        for(y = 0; y < source.h; ++y)
+            for(x = 0; x < source.w; ++x) {
+                float val = get_pixel(source, x, y, k);
+                set_pixel(dest, dx+x, dy+y, k, val);
+            }
 }
 
 image my_make_empty_image(int w, int h, int c)
@@ -40,6 +53,22 @@ image my_make_empty_image(int w, int h, int c)
     out.w = w;
     out.c = c;
     return out;
+}
+
+void my_letterbox_image_into(image im, int w, int h, image boxed)
+{
+    int new_w = im.w;
+    int new_h = im.h;
+    if ((w/im.w) < (h/im.h)) {
+        new_w = w;
+        new_h = (im.h * w)/im.w;
+    } else {
+        new_h = h;
+        new_w = (im.w * h)/im.h;
+    }
+    image resized = resize_image(im, new_w, new_h);
+    my_embed_image(resized, boxed, (w-new_w)/2, (h-new_h)/2);
+    free_image(resized);
 }
 
 void ipl_into_image(IplImage *src, image im)
@@ -76,82 +105,16 @@ image my_get_image_from_stream(CvCapture *cap)
     return im;
 }
 
-static float get_pixel(image m, int x, int y, int c)
+int size_network(network *net)
 {
-    assert(x < m.w && y < m.h && c < m.c);
-    return m.data[c*m.h*m.w + y*m.w + x];
-}
-
-static void set_pixel(image m, int x, int y, int c, float val)
-{
-    if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c)
-        return;
-    assert(x < m.w && y < m.h && c < m.c);
-    m.data[c*m.h*m.w + y*m.w + x] = val;
-}
-
-void my_embed_image(image source, image dest, int dx, int dy)
-{
-    int x,y,k;
-    for(k = 0; k < source.c; ++k)
-        for(y = 0; y < source.h; ++y)
-            for(x = 0; x < source.w; ++x) {
-                float val = get_pixel(source, x, y, k);
-                set_pixel(dest, dx+x, dy+y, k, val);
-            }
-}
-
-void my_letterbox_image_into(image im, int w, int h, image boxed)
-{
-    int new_w = im.w;
-    int new_h = im.h;
-    if ((w/im.w) < (h/im.h)) {
-        new_w = w;
-        new_h = (im.h * w)/im.w;
-    } else {
-        new_h = h;
-        new_w = (im.w * h)/im.h;
+    int i;
+    int count = 0;
+    for (i = 0; i < net->n; ++i) {
+        layer l = net->layers[i];
+        if (l.type == YOLO || l.type == REGION || l.type == DETECTION)
+            count += l.outputs;
     }
-    image resized = resize_image(im, new_w, new_h);
-    my_embed_image(resized, boxed, (w-new_w)/2, (h-new_h)/2);
-    free_image(resized);
-}
-
-void *fetch_in_thread(void *ptr)
-{
-    (void) ptr;
-    free_image(buff[buff_index]);
-    buff[buff_index] = my_get_image_from_stream(cap);
-    if (buff[buff_index].data == 0) {
-        demo_done = 1;
-        return 0;
-    }
-    my_letterbox_image_into(buff[buff_index], net->w, net->h, buff_letter[buff_index]);
-    return 0;
-}
-
-void *display_in_thread(void)
-{
-    int c = show_image(buff[(buff_index+1) % 3], "Demo", 1);
-    if (c != -1)
-        c = c % 256;
-    if (c == 27) {
-        demo_done = 1;
-        return 0;
-    } else if (c == 82) {
-        demo_thresh += (float) .02;
-    } else if (c == 84) {
-        demo_thresh -= (float) .02;
-        if(demo_thresh <= (float) .02)
-            demo_thresh = (float) .02;
-    } else if (c == 83) {
-        demo_hier += (float) .02;
-    } else if (c == 81) {
-        demo_hier -= (float) .02;
-        if (demo_hier <= (float) .0)
-            demo_hier = (float) .0;
-    }
-    return 0;
+    return count;
 }
 
 void remember_network(network *net)
@@ -213,6 +176,43 @@ void *detect_in_thread(void *ptr)
 
     demo_index = (demo_index + 1)%demo_frame;
     running = 0;
+    return 0;
+}
+
+void *fetch_in_thread(void *ptr)
+{
+    (void) ptr;
+    free_image(buff[buff_index]);
+    buff[buff_index] = my_get_image_from_stream(cap);
+    if (buff[buff_index].data == 0) {
+        demo_done = 1;
+        return 0;
+    }
+    my_letterbox_image_into(buff[buff_index], net->w, net->h, buff_letter[buff_index]);
+    return 0;
+}
+
+void *display_in_thread(void)
+{
+    int c = show_image(buff[(buff_index+1) % 3], "Demo", 1);
+    if (c != -1)
+        c = c % 256;
+    if (c == 27) {
+        demo_done = 1;
+        return 0;
+    } else if (c == 82) {
+        demo_thresh += (float) .02;
+    } else if (c == 84) {
+        demo_thresh -= (float) .02;
+        if(demo_thresh <= (float) .02)
+            demo_thresh = (float) .02;
+    } else if (c == 83) {
+        demo_hier += (float) .02;
+    } else if (c == 81) {
+        demo_hier -= (float) .02;
+        if (demo_hier <= (float) .0)
+            demo_hier = (float) .0;
+    }
     return 0;
 }
 
