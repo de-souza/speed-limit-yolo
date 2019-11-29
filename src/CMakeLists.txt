@@ -1,5 +1,4 @@
-add_executable(${PROJECT_NAME} main.c image.c ocr.c video.c)
-add_custom_target(headers SOURCES image.h ocr.h video.h)
+add_executable(${PROJECT_NAME} main.c image.c ocr.c utils.c video.c)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     C_STANDARD 11
@@ -9,12 +8,15 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 set(DARKNET_PATH ${PROJECT_SOURCE_DIR}/../darknet/ CACHE PATH "Path to the (compiled) darknet directory")
-
 message(STATUS "Path to the (compiled) darknet directory: ${DARKNET_PATH}")
 message(STATUS "Set this path with 'cmake -D DARKNET_PATH:PATH=/home/user/darknet'")
 
-find_library(DARKNET_LIBRARY NAMES libdarknet.a PATHS ${DARKNET_PATH})
+find_library(DARKNET_LIBRARY darknet PATHS ${DARKNET_PATH})
+set(OPENCV_LIBS opencv_core;opencv_imgcodecs;opencv_highgui;opencv_videoio)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${DARKNET_LIBRARY} ${DARKNET_LIBRARY} opencv_highgui opencv_videoio opencv_imgcodecs opencv_core stdc++ m pthread lept tesseract)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DARKNET_LIBRARY} ${OPENCV_LIBS} stdc++ m pthread lept tesseract)
 target_include_directories(${PROJECT_NAME} PRIVATE ${DARKNET_PATH}/include)
+target_compile_definitions(${PROJECT_NAME} PRIVATE DARKNET_PATH="${DARKNET_PATH}")
 target_compile_options(${PROJECT_NAME} PRIVATE -O3)
+
+add_custom_target(headers SOURCES image.h ocr.h utils.h video.h)

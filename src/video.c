@@ -1,6 +1,7 @@
 #include <opencv2/highgui/highgui_c.h>
 
 #include "video.h"
+#include "utils.h"
 
 static char **demo_names;
 static image **demo_alphabet;

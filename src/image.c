@@ -1,4 +1,5 @@
 #include "image.h"
+#include "utils.h"
 
 void show_detections(const image im, detection *dets, const int num, const float thresh, char **names, const int classes)
 {
