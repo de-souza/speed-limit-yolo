@@ -1,7 +1,8 @@
 #include <opencv2/highgui/highgui_c.h>
 
-#include "video.h"
+#include "ocr.h"
 #include "utils.h"
+#include "video.h"
 
 static char **demo_names;
 static image **demo_alphabet;
@@ -11,7 +12,7 @@ static image buff[3];
 static image buff_letter[3];
 static int buff_index;
 static void *cap;
-static float fps;
+static double fps;
 static float demo_thresh;
 static float demo_hier;
 static int demo_frame;
@@ -20,6 +21,9 @@ static float **predictions;
 static float *avg;
 static int demo_done;
 static int demo_total;
+static int demo_show;
+static int demo_extend_px;
+static const char* demo_output;
 
 static float get_pixel(image m, int x, int y, int c)
 {
@@ -136,10 +140,9 @@ detection *avg_predictions(network *net, int *nboxes)
     int i, j;
     int count = 0;
     fill_cpu(demo_total, 0, avg, 1);
-    for(j = 0; j < demo_frame; ++j) {
+    for (j = 0; j < demo_frame; ++j)
         axpy_cpu(demo_total, ((float) 1.)/demo_frame, predictions[j], 1, avg, 1);
-    }
-    for(i = 0; i < net->n; ++i) {
+    for (i = 0; i < net->n; ++i) {
         layer l = net->layers[i];
         if (l.type == YOLO || l.type == REGION || l.type == DETECTION) {
             memcpy(l.output, avg + count, sizeof(float) * (unsigned) l.outputs);
@@ -165,17 +168,36 @@ void *detect_in_thread(void *ptr)
     int nboxes = 0;
     dets = avg_predictions(net, &nboxes);
 
-    if (nms > 0) do_nms_obj(dets, nboxes, l.classes, nms);
-
     printf("\033[2J");
     printf("\033[1;1H");
-    printf("\nFPS:%.1f\n", (double) fps);
-    printf("Objects:\n\n");
-    image display = buff[(buff_index+2) % 3];
-    draw_detections(display, dets, nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes);
+    printf("\nFPS:%.1f\n", fps);
+
+    if (nboxes) {
+        if (nms > 0)
+            do_nms_obj(dets, nboxes, l.classes, nms);
+
+        image display = buff[(buff_index+2) % 3];
+
+        detection best = best_detection(dets, nboxes, demo_thresh, 0);
+        image cropped = crop_from_detection(display, best, demo_extend_px);
+        save_image(cropped, demo_output);
+
+        puts("Objects:\n");
+        draw_detections(display, dets, nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes);
+        fflush(stdout);
+
+        if (demo_show)
+            show_image(cropped, demo_output, 1000);
+
+        printf("Detection: %d\n", recognize_number("pred.jpg", demo_show));
+        free_image(cropped);
+    } else {
+        puts("No detection.");
+    }
+
     free_detections(dets, nboxes);
 
-    demo_index = (demo_index + 1)%demo_frame;
+    demo_index = (demo_index+1) % demo_frame;
     running = 0;
     return 0;
 }
@@ -205,7 +227,7 @@ void *display_in_thread(void)
         demo_thresh += (float) .02;
     } else if (c == 84) {
         demo_thresh -= (float) .02;
-        if(demo_thresh <= (float) .02)
+        if (demo_thresh <= (float) .02)
             demo_thresh = (float) .02;
     } else if (c == 83) {
         demo_hier += (float) .02;
@@ -217,7 +239,7 @@ void *display_in_thread(void)
     return 0;
 }
 
-void detect_video(char *cfgfile, char *weightfile, const float thresh, const char *filename, char **names, const int classes)
+void detect_video(char *cfgfile, char *weightfile, const float thresh, const char *filename, char **names, const int classes, const int show, const int extend_px, const char *output)
 {
     image **alphabet = load_alphabet();
     demo_names = names;
@@ -225,6 +247,9 @@ void detect_video(char *cfgfile, char *weightfile, const float thresh, const cha
     demo_classes = classes;
     demo_thresh = thresh;
     demo_hier = 0;
+    demo_show = show;
+    demo_extend_px = extend_px;
+    demo_output = output;
 
     net = load_network(cfgfile, weightfile, 0);
     set_batch_network(net, 1);
@@ -264,13 +289,13 @@ void detect_video(char *cfgfile, char *weightfile, const float thresh, const cha
 
     double demo_time = what_time_is_it_now();
 
-    while(!demo_done){
+    while (!demo_done) {
         buff_index = (buff_index + 1) % 3;
         if (pthread_create(&fetch_thread, NULL, fetch_in_thread, NULL))
             error("Thread creation failed");
         if (pthread_create(&detect_thread, NULL, detect_in_thread, NULL))
             error("Thread creation failed");
-        fps = (float) (1./(what_time_is_it_now() - demo_time));
+        fps = 1. / (what_time_is_it_now()-demo_time);
         demo_time = what_time_is_it_now();
         display_in_thread();
         pthread_join(fetch_thread, 0);

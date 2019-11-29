@@ -31,10 +31,11 @@ int main(int argc, char **argv)
     int classes = (int) (sizeof(names) / sizeof(*names));
 
     if (!input || video) {
-        detect_video(cfgfile, weightfile, thresh, input, names, classes);
+        detect_video(cfgfile, weightfile, thresh, input, names, classes, show, extend_px, "pred");
     } else {
-        detect_image(cfgfile, weightfile, thresh, input, names, classes, show, extend_px, "pred");
-        int result = recognize_number("pred.jpg", show);
-        printf("Result: %d\n", result);
+        if (detect_image(cfgfile, weightfile, thresh, input, names, classes, show, extend_px, "pred"))
+            printf("Detection: %d\n", recognize_number("pred.jpg", show));
+        else
+            puts("No detection.");
     }
 }

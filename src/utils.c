@@ -15,3 +15,20 @@ image **load_alphabet()
     }
     return alphabets;
 }
+
+detection best_detection(detection *dets, int num, float thresh, size_t class)
+{
+    for (int i = 0; i < num; ++i)
+        if (dets[i].prob[class] > thresh)
+            return dets[i];
+    return dets[0];
+}
+
+image crop_from_detection(const image im, const detection det, const int extend_px)
+{
+    int dx = (int) ((det.bbox.x - (det.bbox.w/2)) * im.w) - extend_px;
+    int dy = (int) ((det.bbox.y - (det.bbox.h/2)) * im.h) - extend_px;
+    int w = (int) (det.bbox.w * im.w) + 2*extend_px;
+    int h = (int) (det.bbox.h * im.h) + 2*extend_px;
+    return crop_image(im, dx, dy, w, h);
+}

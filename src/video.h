@@ -16,6 +16,6 @@ detection *avg_predictions(network *net, int *nboxes);
 void *detect_in_thread(void *ptr);
 void *fetch_in_thread(void *ptr);
 void *display_in_thread(void);
-void detect_video(char *cfgfile, char *weightfile, const float thresh, const char *filename, char **names, const int classes);
+void detect_video(char *cfgfile, char *weightfile, const float thresh, const char *filename, char **names, const int classes, const int show, const int extend_px, const char *output);
 
 #endif // VIDEO_H
