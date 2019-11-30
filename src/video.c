@@ -189,8 +189,9 @@ void *detect_in_thread(void *ptr)
         if (demo_show)
             show_image(cropped, demo_output, 1000);
 
-        printf("Detection: %d\n", recognize_number("pred.jpg", demo_show));
         free_image(cropped);
+
+        printf("Detection: %d\n", recognize_number("pred.jpg", demo_show));
     } else {
         puts("No detection.");
     }

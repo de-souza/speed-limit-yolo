@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "image.h"
-#include "ocr.h"
 #include "video.h"
 
 int main(int argc, char **argv)
@@ -30,12 +29,8 @@ int main(int argc, char **argv)
     char *names[] = {"prohibitory", "danger", "mandatory", "stop", "yield"};
     int classes = (int) (sizeof(names) / sizeof(*names));
 
-    if (!input || video) {
+    if (input && !video)
+        detect_image(cfgfile, weightfile, thresh, input, names, classes, show, extend_px, "pred");
+    else
         detect_video(cfgfile, weightfile, thresh, input, names, classes, show, extend_px, "pred");
-    } else {
-        if (detect_image(cfgfile, weightfile, thresh, input, names, classes, show, extend_px, "pred"))
-            printf("Detection: %d\n", recognize_number("pred.jpg", show));
-        else
-            puts("No detection.");
-    }
 }

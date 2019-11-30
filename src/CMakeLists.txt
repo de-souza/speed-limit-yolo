@@ -1,4 +1,5 @@
 add_executable(${PROJECT_NAME} main.c image.c ocr.c utils.c video.c)
+add_custom_target(headers SOURCES image.h ocr.h utils.h video.h)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     C_STANDARD 11
@@ -7,16 +8,32 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-set(DARKNET_PATH ${PROJECT_SOURCE_DIR}/../darknet/ CACHE PATH "Path to the (compiled) darknet directory")
-message(STATUS "Path to the (compiled) darknet directory: ${DARKNET_PATH}")
-message(STATUS "Set this path with 'cmake -D DARKNET_PATH:PATH=/home/user/darknet'")
+list(APPEND LINK_LIBS m pthread stdc++)
 
+set(DARKNET_PATH ${PROJECT_SOURCE_DIR}/../darknet/ CACHE PATH "Path to the darknet library")
+message(STATUS "Using: \"-DDARKNET_PATH:PATH=${DARKNET_PATH}\"")
 find_library(DARKNET_LIBRARY darknet PATHS ${DARKNET_PATH})
-set(OPENCV_LIBS opencv_core;opencv_imgcodecs;opencv_highgui;opencv_videoio)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE ${DARKNET_LIBRARY} ${OPENCV_LIBS} stdc++ m pthread lept tesseract)
-target_include_directories(${PROJECT_NAME} PRIVATE ${DARKNET_PATH}/include)
+list(APPEND LINK_LIBS ${DARKNET_LIBRARY})
+list(APPEND INCLUDE_DIRS ${DARKNET_PATH}/include)
 target_compile_definitions(${PROJECT_NAME} PRIVATE DARKNET_PATH="${DARKNET_PATH}")
-target_compile_options(${PROJECT_NAME} PRIVATE -O3)
 
-add_custom_target(headers SOURCES image.h ocr.h utils.h video.h)
+list(APPEND LINK_LIBS opencv_core opencv_highgui opencv_imgcodecs opencv_videoio)
+
+list(APPEND LINK_LIBS lept tesseract)
+
+option(CLIENTIO "Enable linking to the clientio library")
+message(STATUS "Using: \"-DCLIENTIO:BOOL=${CLIENTIO}\"")
+if(CLIENTIO)
+    set(CLIENTIO_PATH ${PROJECT_SOURCE_DIR}/../car-dashboard/client/clientio/ CACHE PATH "Path to the clientio library")
+    message(STATUS "Using: \"-DCLIENTIO_PATH:PATH=${CLIENTIO_PATH}\"")
+    find_library(CLIENTIO_LIBRARY clientio PATHS ${CLIENTIO_PATH})
+    list(APPEND LINK_LIBS ${CLIENTIO_LIBRARY})
+    list(APPEND INCLUDE_DIRS ${CLIENTIO_PATH})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CLIENTIO=1)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CLIENTIO=0)
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LINK_LIBS})
+target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRS})
+target_compile_options(${PROJECT_NAME} PRIVATE -O3)

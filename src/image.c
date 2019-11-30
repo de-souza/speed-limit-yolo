@@ -1,4 +1,7 @@
+#include <clientio.h>
+
 #include "image.h"
+#include "ocr.h"
 #include "utils.h"
 
 void show_detections(const image im, detection *dets, const int num, const float thresh, char **names, const int classes)
@@ -11,7 +14,7 @@ void show_detections(const image im, detection *dets, const int num, const float
     free_image(canvas);
 }
 
-int detect_image(char *cfgfile, char *weightfile, const float thresh, char *input, char **names, const int classes, const int show, const int extend_px, const char *output)
+void detect_image(char *cfgfile, char *weightfile, const float thresh, char *input, char **names, const int classes, const int show, const int extend_px, const char *output)
 {
     network *net = load_network(cfgfile, weightfile, 0);
     set_batch_network(net, 1);
@@ -27,12 +30,30 @@ int detect_image(char *cfgfile, char *weightfile, const float thresh, char *inpu
             show_detections(im, dets, num, thresh, names, classes);
         detection best = best_detection(dets, num, thresh, 0);
         image cropped = crop_from_detection(im, best, extend_px);
-        show_image(cropped, output, 0);
+        if (show)
+            show_image(cropped, output, 0);
         save_image(cropped, output);
         free_image(cropped);
     }
-    free_detections(dets, num);
-    free_image(sized);
     free_image(im);
-    return detected;
+    free_image(sized);
+    free_detections(dets, num);
+    if (detected) {
+        int speed_limit = recognize_number("pred.jpg", show);
+        printf("Speed limit: %d\n", speed_limit);
+
+#ifdef CLIENTIO
+
+        char message[15];
+        size_t len = sizeof(message);
+        snprintf(message, len, "CANN LIMIT %d", speed_limit);
+        int sockfd = create_connected_socket("127.0.0.1", 2222);
+        send_message(sockfd, message, len);
+        close_socket(sockfd);
+
+#endif // CLIENTIO
+
+    } else {
+        puts("No detection.");
+    }
 }
