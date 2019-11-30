@@ -1,3 +1,6 @@
+#ifdef CLIENTIO
+#include <clientio.h>
+#endif // CLIENTIO
 #include <opencv2/highgui/highgui_c.h>
 
 #include "ocr.h"
@@ -191,7 +194,16 @@ void *detect_in_thread(void *ptr)
 
         free_image(cropped);
 
-        printf("Detection: %d\n", recognize_number("pred.jpg", demo_show));
+        int speed_limit = recognize_number("pred.jpg", demo_show);
+        printf("Speed limit: %d\n", speed_limit);
+#ifdef CLIENTIO
+        char message[16];
+        size_t len = sizeof(message);
+        snprintf(message, len, "CANN LIMIT %d", speed_limit);
+        int sockfd = create_connected_socket("127.0.0.1", 2222);
+        send_message(sockfd, message, len);
+        close_socket(sockfd);
+#endif // CLIENTIO
     } else {
         puts("No detection.");
     }
