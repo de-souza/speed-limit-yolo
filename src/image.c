@@ -32,8 +32,6 @@ void detect_image(char *cfgfile, char *weightfile, const float thresh, char *inp
             show_detections(im, dets, num, thresh, names, classes);
         detection best = best_detection(dets, num, thresh, 0);
         image cropped = crop_from_detection(im, best, extend_px);
-        if (show)
-            show_image(cropped, output, 0);
         save_image(cropped, output);
         free_image(cropped);
     }
@@ -41,10 +39,10 @@ void detect_image(char *cfgfile, char *weightfile, const float thresh, char *inp
     free_image(sized);
     free_detections(dets, num);
     if (detected) {
-        int speed_limit = recognize_number("pred.jpg", show);
+        int speed_limit = recognize_number(input, show);
         printf("Speed limit: %d\n", speed_limit);
 #ifdef CLIENTIO
-        char message[16];
+        char message[24];
         size_t len = sizeof(message);
         snprintf(message, len, "CANN SPEED_LIMIT %d", speed_limit);
         int sockfd = create_connected_socket("127.0.0.1", 2222);

@@ -27,6 +27,7 @@ static int demo_total;
 static int demo_show;
 static int demo_extend_px;
 static const char* demo_output;
+static CvVideoWriter* demo_output_video;
 
 static float get_pixel(image m, int x, int y, int c)
 {
@@ -91,6 +92,19 @@ void ipl_into_image(IplImage *src, image im)
         for(k = 0; k < c; ++k)
             for(j = 0; j < w; ++j)
                 im.data[k*w*h + i*w + j] = data[i*step + j*c + k]/(float) 255.;
+}
+
+IplImage *image_to_ipl(image im)
+{
+    IplImage *disp = cvCreateImage(cvSize(im.w, im.h), IPL_DEPTH_8U, im.c);
+    int step = disp->widthStep;
+    for(int y = 0; y < im.h; ++y)
+        for(int x = 0; x < im.w; ++x)
+            for(int c = 0; c < im.c; ++c) {
+                float val = im.data[c*im.h*im.w + y*im.w + x];
+                disp->imageData[y*step + x*im.c + c] = (char) (val*255);
+            }
+    return disp;
 }
 
 image my_ipl_to_image(IplImage *src)
@@ -175,29 +189,28 @@ void *detect_in_thread(void *ptr)
     printf("\033[1;1H");
     printf("\nFPS:%.1f\n", fps);
 
+    image display = buff[(buff_index+2) % 3];
+
     if (nboxes) {
         if (nms > 0)
             do_nms_obj(dets, nboxes, l.classes, nms);
-
-        image display = buff[(buff_index+2) % 3];
-
         detection best = best_detection(dets, nboxes, demo_thresh, 0);
         image cropped = crop_from_detection(display, best, demo_extend_px);
         save_image(cropped, demo_output);
-
-        puts("Objects:\n");
-        draw_detections(display, dets, nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes);
-        fflush(stdout);
-
-        if (demo_show)
-            show_image(cropped, demo_output, 1000);
-
         free_image(cropped);
-
-        int speed_limit = recognize_number("pred.jpg", demo_show);
-        printf("Speed limit: %d\n", speed_limit);
+        int speed_limit = recognize_number(demo_output, demo_show);
+        puts("Detections:");
+        if ((speed_limit%10) == 0 && 0 < speed_limit && speed_limit < 131) {
+            char *speed_limit_str = malloc(4);
+            snprintf(speed_limit_str, 4, "%d", speed_limit);
+            draw_detections(display, &best, 1, demo_thresh, &speed_limit_str, demo_alphabet, demo_classes);
+            free(speed_limit_str);
+        } else {
+            draw_detections(display, dets, nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes);
+        }
+        fflush(stdout);
 #ifdef CLIENTIO
-        char message[16];
+        char message[24];
         size_t len = sizeof(message);
         snprintf(message, len, "CANN SPEED_LIMIT %d", speed_limit);
         int sockfd = create_connected_socket("127.0.0.1", 2222);
@@ -206,6 +219,23 @@ void *detect_in_thread(void *ptr)
 #endif // CLIENTIO
     } else {
         puts("No detection.");
+    }
+    int save_output = 1;
+    if (save_output) {
+        image display_rgb = copy_image(display);
+        rgbgr_image(display_rgb);
+        IplImage *cv_display = image_to_ipl(display_rgb);
+        free_image(display_rgb);
+        if (demo_output_video == NULL) {
+            CvSize size;
+            size.width = display.w;
+            size.height = display.h;
+            printf("SRC demo_output_video = %p\n", (void *) demo_output_video);
+            const char* output_name = "example.avi";
+            demo_output_video = cvCreateVideoWriter(output_name, CV_FOURCC('D', 'I', 'V', 'X'), 25, size, 1);
+            printf("cvCreateVideoWriter, DST output_video = %p\n", (void *) demo_output_video);
+        }
+        cvWriteFrame(demo_output_video, cv_display);
     }
 
     free_detections(dets, nboxes);
@@ -311,7 +341,8 @@ void detect_video(char *cfgfile, char *weightfile, const float thresh, const cha
             error("Thread creation failed");
         fps = 1. / (what_time_is_it_now()-demo_time);
         demo_time = what_time_is_it_now();
-        display_in_thread();
+        if (demo_show)
+            display_in_thread();
         pthread_join(fetch_thread, 0);
         pthread_join(detect_thread, 0);
         ++count;

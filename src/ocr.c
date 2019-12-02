@@ -20,8 +20,12 @@ int parse_number(const char *str)
 
 int recognize_number(const char *input, const int show_result)
 {
+    char *input_full = malloc(strlen(input) + 5);
+    strncpy(input_full, input, strlen(input) + 1);
+    strncat(input_full, ".jpg", strlen(input_full) + 1);
+    PIX *img = pixRead(input_full);
+    free(input_full);
     TessBaseAPI *handle = TessBaseAPICreate();
-    PIX *img = pixRead(input);
     TessBaseAPIInit3(handle, NULL, "eng");
     TessBaseAPISetVariable(handle, "tessedit_char_whitelist", "0123456789");
     TessBaseAPISetImage2(handle, img);
