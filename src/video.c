@@ -196,7 +196,7 @@ void *detect_in_thread(void *ptr)
             do_nms_obj(dets, nboxes, l.classes, nms);
         detection best = best_detection(dets, nboxes, demo_thresh, 0);
         image cropped = crop_from_detection(display, best, demo_extend_px);
-        save_image(cropped, demo_output);
+        save_image_options(cropped, demo_output, BMP, 0);
         free_image(cropped);
         int speed_limit = recognize_number(demo_output, demo_show);
         puts("Detections:");
@@ -231,8 +231,8 @@ void *detect_in_thread(void *ptr)
             size.width = display.w;
             size.height = display.h;
             printf("SRC demo_output_video = %p\n", (void *) demo_output_video);
-            const char* output_name = "example.avi";
-            demo_output_video = cvCreateVideoWriter(output_name, CV_FOURCC('D', 'I', 'V', 'X'), 25, size, 1);
+            const char* output_name = "test.avi";
+            demo_output_video = cvCreateVideoWriter(output_name, CV_FOURCC('H', '2', '6', '4'), 60, size, 1);
             printf("cvCreateVideoWriter, DST output_video = %p\n", (void *) demo_output_video);
         }
         cvWriteFrame(demo_output_video, cv_display);

@@ -22,7 +22,7 @@ int recognize_number(const char *input, const int show_result)
 {
     char *input_full = malloc(strlen(input) + 5);
     strncpy(input_full, input, strlen(input) + 1);
-    strncat(input_full, ".jpg", strlen(input_full) + 1);
+    strncat(input_full, ".bmp", strlen(input_full) + 1);
     PIX *img = pixRead(input_full);
     free(input_full);
     TessBaseAPI *handle = TessBaseAPICreate();

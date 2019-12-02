@@ -32,7 +32,7 @@ void detect_image(char *cfgfile, char *weightfile, const float thresh, char *inp
             show_detections(im, dets, num, thresh, names, classes);
         detection best = best_detection(dets, num, thresh, 0);
         image cropped = crop_from_detection(im, best, extend_px);
-        save_image(cropped, output);
+        save_image_options(cropped, output, BMP, 0);
         free_image(cropped);
     }
     free_image(im);
