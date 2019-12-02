@@ -298,7 +298,8 @@ void detect_video(char *cfgfile, char *weightfile, const float thresh, const cha
 
     int count = 0;
 
-    cvNamedWindow("Demo", CV_WINDOW_AUTOSIZE);
+    if (demo_show)
+        cvNamedWindow("Demo", CV_WINDOW_AUTOSIZE);
 
     double demo_time = what_time_is_it_now();
 
