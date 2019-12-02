@@ -199,7 +199,7 @@ void *detect_in_thread(void *ptr)
 #ifdef CLIENTIO
         char message[16];
         size_t len = sizeof(message);
-        snprintf(message, len, "CANN LIMIT %d", speed_limit);
+        snprintf(message, len, "CANN SPEED_LIMIT %d", speed_limit);
         int sockfd = create_connected_socket("127.0.0.1", 2222);
         send_message(sockfd, message, len);
         close_socket(sockfd);
